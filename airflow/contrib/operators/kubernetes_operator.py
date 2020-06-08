@@ -627,10 +627,15 @@ class KubernetesJobOperator(BaseOperator):
 
                 pod_output = self.get_pods(job_name)
                 for pod in pod_output['items']:
-                    pod_name = pod['metadata']['name']
-                    result = subprocess.check_output(
-                        args=namespaced_kubectl() +
-                        ['describe', 'pod', pod_name])
-                    logging.info("Describing failed pod {}".format(result))
-
-            self.clean_up(job_name)
+                    try:
+                        pod_name = pod['metadata']['name']
+                        result = subprocess.check_output(
+                            args=namespaced_kubectl() +
+                            ['describe', 'pod', pod_name])
+                        logging.info("Describing failed pod {}".format(result))
+                    except Exception as ex_desc:
+                        logging.warn(
+                            "Failed to describe failed pod {}: {}".format(
+                                result, ex_desc))
+            finally:
+                self.clean_up(job_name)
