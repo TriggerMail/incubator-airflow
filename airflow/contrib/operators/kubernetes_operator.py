@@ -415,6 +415,7 @@ class KubernetesJobOperator(BaseOperator):
             cs['volumeMounts'].append({
                 'name': 'mysql-sslcert',
                 'mountPath': '/mysql-sslcert',
+                'readOnly': True,
             })
             # do we already have the secret mount? if not, we should add it
             if self.service_account_secret_name is not None:
