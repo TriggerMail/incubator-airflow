@@ -104,6 +104,7 @@ class BaseJob(Base, LoggingMixin):
         self.latest_heartbeat = datetime.utcnow()
         self.heartrate = heartrate
         self.unixname = getpass.getuser()
+        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         super(BaseJob, self).__init__(*args, **kwargs)
 
     def is_alive(self):
@@ -248,36 +249,51 @@ class BaseJob(Base, LoggingMixin):
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
                                                                   session=session)
-        tis_to_reset = []
-        # Can't use an update here since it doesn't support joins
-        for ti in resettable_tis:
-            if ti.key not in queued_tis and ti.key not in running_tis:
-                tis_to_reset.append(ti)
 
-        filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
-                                TI.task_id == ti.task_id,
-                                TI.execution_date == ti.execution_date)
-                           for ti in tis_to_reset])
-        if len(tis_to_reset) == 0:
-            return []
-        reset_tis = (
-            session
-            .query(TI)
-            .filter(or_(*filter_for_tis), TI.state.in_(resettable_states))
-            .with_for_update()
-            .all())
-        for ti in reset_tis:
-            ti.state = State.NONE
-            session.merge(ti)
-        task_instance_str = '\n\t'.join(
-            ["{}".format(x) for x in reset_tis])
-        session.commit()
+        if self.max_tis_per_query > 0:
+            chunks = ([resettable_tis[i:i + self.max_tis_per_query]
+                      for i in range(0, len(resettable_tis), self.max_tis_per_query)])
+        else:
+            # if not chunking, wrap the whole resettable_tis slice to keep the syntax the same
+            chunks = [resettable_tis]
 
-        self.log.info(
-            "Reset the following %s TaskInstances:\n\t%s",
-            len(reset_tis), task_instance_str
-        )
-        return reset_tis
+        all_reset_tis = []
+        for chunk in chunks:
+            tis_to_reset = []
+            # Can't use an update here since it doesn't support joins
+            for ti in chunk:
+                if ti.key not in queued_tis and ti.key not in running_tis:
+                    tis_to_reset.append(ti)
+
+            filter_for_tis = ([
+                and_(
+                    TI.dag_id == ti.dag_id,
+                    TI.task_id == ti.task_id,
+                    TI.execution_date == ti.execution_date,
+                ) for ti in tis_to_reset
+            ])
+            if len(tis_to_reset) == 0:
+                return []
+            reset_tis = (
+                session
+                .query(TI)
+                .filter(or_(*filter_for_tis), TI.state.in_(resettable_states))
+                .with_for_update()
+                .all())
+            for ti in reset_tis:
+                ti.state = State.NONE
+                session.merge(ti)
+            task_instance_str = '\n\t'.join(
+                ["{}".format(x) for x in reset_tis])
+            session.commit()
+
+            self.log.info(
+                "Reset the following %s TaskInstances:\n\t%s",
+                len(reset_tis), task_instance_str
+            )
+            all_reset_tis.extend(reset_tis)
+
+        return all_reset_tis
 
 
 class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
@@ -416,11 +432,13 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             raise AirflowException("Tried to call stop before starting!")
         # The queue will likely get corrupted, so remove the reference
         self._result_queue = None
+        if self._process.is_alive():
+            self.log.warning("Terminating PID %s for %s", self._process.pid, self._file_path)
         self._process.terminate()
         # Arbitrarily wait 5s for the process to die
         self._process.join(5)
         if sigkill and self._process.is_alive():
-            self.log.warning("Killing PID %s", self._process.pid)
+            self.log.warning("Killing PID %s for %s", self._process.pid, self._file_path)
             os.kill(self._process.pid, signal.SIGKILL)
 
     @property
