@@ -611,11 +611,15 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
 
     def get_num_ready_workers_running(gunicorn_master_proc):
         workers = psutil.Process(gunicorn_master_proc.pid).children()
-        ready_workers = [
-            proc for proc in workers
-            if settings.GUNICORN_WORKER_READY_PREFIX in proc.cmdline()[0]
-        ]
-        return len(ready_workers)
+        num_ready_workers = 0
+        for proc in workers:
+            cmdline = proc.cmdline()
+            if len(cmdline) == 0:
+                # see https://github.com/giampaolo/psutil/blob/f9b1b5e431ecbecf76b255737d5738ba2c69c1ba/psutil/_pslinux.py#L1639
+                log.warn("Child process %d has no commandline. Probably a zombie.", proc.pid)
+            elif settings.GUNICORN_WORKER_READY_PREFIX in proc.cmdline()[0]:
+                num_ready_workers += 1
+        return num_ready_workers
 
     def start_refresh(gunicorn_master_proc):
         batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
