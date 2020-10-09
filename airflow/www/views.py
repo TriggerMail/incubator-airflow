@@ -2422,6 +2422,8 @@ class DagRunModelView(ModelViewOnly):
                 dirty_ids.append(dr.dag_id)
                 count += 1
                 dr.state = target_state
+                if target_state == State.FAILED:
+                    dr.fail_unfinished_tasks()
                 if target_state == State.RUNNING:
                     dr.start_date = datetime.utcnow()
                 else:

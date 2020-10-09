@@ -71,7 +71,7 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 
-from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
+from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS, SCHEDULER_DEPS
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
@@ -4734,22 +4734,21 @@ class DagRun(Base, LoggingMixin):
     def get_state(self):
         return self._state
 
-    def _fail_unfinished_tasks(self):
-        unfinished_tasks = self.get_task_instances(state=State.unfinished())
+    @provide_session
+    def fail_unfinished_tasks(self, session=None):
+        unfinished_tasks = self.get_task_instances(state=State.unfinished(), session=session)
         for ut in unfinished_tasks:
-            deps_met = ut.are_dependencies_met(
-                dep_context=DepContext(
-                    flag_upstream_failed=True,
-                    ignore_in_retry_period=True)
-            )
-            if not deps_met:
-                ut.set_state(State.FAILED)
+            # deps_met = ut.are_dependencies_met(
+            #     dep_context=DepContext(deps=SCHEDULER_DEPS)
+            # )
+            # if not deps_met:
+            ut.set_state(State.FAILED, session=None)
 
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            if state == State.FAILED:
-                self._fail_unfinished_tasks()
+            # if state == State.FAILED:
+            #     self._fail_unfinished_tasks()
             if self.dag_id is not None:
                 # FIXME: Due to the scoped_session factor we we don't get a clean
                 # session here, so something really weird goes on:
