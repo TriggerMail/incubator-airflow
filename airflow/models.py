@@ -4747,11 +4747,8 @@ class DagRun(Base, LoggingMixin):
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            if state == State.FAILED:
-                import traceback
-                print("hi kirolos")
-                traceback.print_stack()
-            #     self.fail_unfinished_tasks()
+            if state == State.FAILED and self.external_trigger:
+                self.fail_unfinished_tasks()
             if self.dag_id is not None:
                 # FIXME: Due to the scoped_session factor we we don't get a clean
                 # session here, so something really weird goes on:
