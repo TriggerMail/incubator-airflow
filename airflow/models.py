@@ -4735,8 +4735,8 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def _fail_unfinished_tasks(self, target_state):
-        # hack to see if this dag has manually been marked as failed through the UI.
-        # if so, we also want to fail unfinished tasks
+        # hack to see if this dagrun has manually been marked through the UI.
+        # if so, we also want to update the unfinished tasks
         if 'edit_view' not in '\n'.join(traceback.format_stack()):
             return
         unfinished_tasks = self.get_task_instances(state=State.unfinished())
