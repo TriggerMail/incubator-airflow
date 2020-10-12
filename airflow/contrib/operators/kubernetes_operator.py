@@ -19,6 +19,13 @@ from airflow.utils.db import provide_session
 from airflow.contrib.utils.kubernetes_utils import retryable_check_output
 
 
+# How quickly backoff grows. At 1.25, it will take ~20 mins to reach the 300-sec
+# MAX_BACKOFF_SECONDS value.
+DEFAULT_POLL_SECONDS = 15
+MAX_BACKOFF_SECONDS = 300
+POLL_BACKOFF_FACTOR = 1.25
+
+
 class KubernetesJobOperator(BaseOperator):
     template_fields = ('service_account_secret_name', )
 
@@ -28,7 +35,7 @@ class KubernetesJobOperator(BaseOperator):
                  env=None,
                  volumes=None,
                  service_account_secret_name=None,
-                 sleep_seconds_between_polling=15,
+                 sleep_seconds_between_polling=None,
                  cloudsql_connections=None,
                  die_if_duplicate=False,
                  *args,
@@ -55,7 +62,7 @@ class KubernetesJobOperator(BaseOperator):
         :param service_account_secret_name: Optional secret to use with Google APIs
         :type service_account_secret_name: string
         :param sleep_seconds_between_polling: number of seconds to sleep between polling
-            for job completion, defaults to 60
+            for job completion. If None then exponential back-off will be used in polling
         :type sleep_seconds_between_polling: int
         :param cloudsql_connections: A list of CloudSQLConnection to tell cloudsql_proxy to open additional connections
         :type cloudsql_connections: list[CloudSQLConnection]
@@ -92,7 +99,12 @@ class KubernetesJobOperator(BaseOperator):
         self.env = env or {}
         self.env['AIRFLOW_VERSION'] = airflow_version
 
-        self.sleep_seconds_between_polling = sleep_seconds_between_polling
+        if sleep_seconds_between_polling:
+            self.sleep_seconds_between_polling = sleep_seconds_between_polling
+            self.poll_backoff = False
+        else:
+            self.sleep_seconds_between_polling = DEFAULT_POLL_SECONDS
+            self.poll_backoff = True
 
         # TODO: dangermike (2018-05-22) get this from... somewhere else
         self.cloudsql_instance_creds = 'airflow-cloudsql-instance-credentials'
@@ -105,7 +117,7 @@ class KubernetesJobOperator(BaseOperator):
     @staticmethod
     def from_job_yaml(job_yaml_string,
                       service_account_secret_name=None,
-                      sleep_seconds_between_polling=60,
+                      sleep_seconds_between_polling=None,
                       *args,
                       **kwargs):
         """
@@ -117,7 +129,7 @@ class KubernetesJobOperator(BaseOperator):
             will look at the secret assigned to the first volume.
         :type service_account_secret_name: string
         :param sleep_seconds_between_polling: number of seconds to sleep between polling
-            for job completion, defaults to 60
+            for job completion. If None then exponential back-off will be used in polling
         :type sleep_seconds_between_polling: int
         :return: KubernetesJobOperator instance
         """
@@ -127,8 +139,9 @@ class KubernetesJobOperator(BaseOperator):
         job_name = deuniquify_job_name(job_data['metadata']['name'])
 
         # this is potentially Bluecore specific: secrets are optional
-        service_account_secret_name = service_account_secret_name or \
-                                      job_data['spec']['template']['spec']['volumes'][0]['secret']['secretName']
+        service_account_secret_name = \
+            service_account_secret_name or \
+            job_data['spec']['template']['spec']['volumes'][0]['secret']['secretName']
 
         # this is gross and horrible, but we have to convert the list-of-name/value-dicts that
         # are environment variables in a container spec into a dictionary.
@@ -223,6 +236,11 @@ class KubernetesJobOperator(BaseOperator):
         has_live_existed = False
         while True:
             time.sleep(self.sleep_seconds_between_polling)
+            if self.poll_backoff:
+                self.sleep_seconds_between_polling = min(
+                    self.sleep_seconds_between_polling * POLL_BACKOFF_FACTOR,
+                    MAX_BACKOFF_SECONDS
+                )
 
             pod_output = self.get_pods(job_name)
 
