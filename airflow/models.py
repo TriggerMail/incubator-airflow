@@ -4735,20 +4735,20 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     @provide_session
-    def fail_unfinished_tasks(self, session=None):
+    def _fail_unfinished_tasks(self, session=None):
+        # hack to see if this dag has manually been marked as failed through the UI.
+        # if so, we also want to fail unfinished tasks
+        if 'edit_view' not in '\n'.join(traceback.format_stack()):
+            return
         unfinished_tasks = self.get_task_instances(state=State.unfinished(), session=session)
         for ut in unfinished_tasks:
-            # deps_met = ut.are_dependencies_met(
-            #     dep_context=DepContext(deps=SCHEDULER_DEPS)
-            # )
-            # if not deps_met:
             ut.set_state(State.FAILED, session=session)
 
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            if state == State.FAILED and self.external_trigger:
-                self.fail_unfinished_tasks()
+            if state == State.FAILED:
+                self._fail_unfinished_tasks()
             if self.dag_id is not None:
                 # FIXME: Due to the scoped_session factor we we don't get a clean
                 # session here, so something really weird goes on:
