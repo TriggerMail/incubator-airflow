@@ -4747,7 +4747,7 @@ class DagRun(Base, LoggingMixin):
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            if state == State.FAILED:
+            if state in [State.FAILED, State.SUCCESS]:
                 self._fail_unfinished_tasks()
             if self.dag_id is not None:
                 # FIXME: Due to the scoped_session factor we we don't get a clean
