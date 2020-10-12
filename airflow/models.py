@@ -4742,13 +4742,16 @@ class DagRun(Base, LoggingMixin):
             #     dep_context=DepContext(deps=SCHEDULER_DEPS)
             # )
             # if not deps_met:
-            ut.set_state(State.FAILED, session=None)
+            ut.set_state(State.FAILED, session=session)
 
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            # if state == State.FAILED:
-            #     self._fail_unfinished_tasks()
+            if state == State.FAILED:
+                import traceback
+                print("hi kirolos")
+                traceback.print_stack()
+            #     self.fail_unfinished_tasks()
             if self.dag_id is not None:
                 # FIXME: Due to the scoped_session factor we we don't get a clean
                 # session here, so something really weird goes on:
