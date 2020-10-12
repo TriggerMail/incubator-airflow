@@ -4734,15 +4734,14 @@ class DagRun(Base, LoggingMixin):
     def get_state(self):
         return self._state
 
-    @provide_session
-    def _fail_unfinished_tasks(self, target_state, session=None):
+    def _fail_unfinished_tasks(self, target_state):
         # hack to see if this dag has manually been marked as failed through the UI.
         # if so, we also want to fail unfinished tasks
         if 'edit_view' not in '\n'.join(traceback.format_stack()):
             return
-        unfinished_tasks = self.get_task_instances(state=State.unfinished(), session=session)
+        unfinished_tasks = self.get_task_instances(state=State.unfinished())
         for ut in unfinished_tasks:
-            ut.set_state(target_state, session=session)
+            ut.set_state(target_state)
 
     def set_state(self, state):
         if self._state != state:
