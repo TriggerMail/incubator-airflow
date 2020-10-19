@@ -4735,7 +4735,8 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def _fail_unfinished_tasks(self, target_state):
-        print('flask-request {}'.format(dir(request)))
+        print('flask-request-dir {}'.format(dir(request)))
+        print('flask-request-p {}'.format(request))
         # hack to see if this dagrun has manually been marked through the UI.
         # if so, we also want to update the unfinished tasks
         if 'edit_view' not in '\n'.join(traceback.format_stack()):
