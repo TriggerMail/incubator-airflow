@@ -83,7 +83,7 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.log.logging_mixin import LoggingMixin
-from flask import g
+from flask import request
 Base = declarative_base()
 ID_LEN = 250
 XCOM_RETURN_KEY = 'return_value'
@@ -4735,7 +4735,7 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def _fail_unfinished_tasks(self, target_state):
-        print('flask-g {}'.format(g))
+        print('flask-request {}'.format(dir(request)))
         # hack to see if this dagrun has manually been marked through the UI.
         # if so, we also want to update the unfinished tasks
         if 'edit_view' not in '\n'.join(traceback.format_stack()):
