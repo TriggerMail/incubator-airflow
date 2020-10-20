@@ -4734,8 +4734,8 @@ class DagRun(Base, LoggingMixin):
     def get_state(self):
         return self._state
 
-    @provide_session
-    def _fail_unfinished_tasks(self, target_state, session=None):
+    def _fail_unfinished_tasks(self, target_state):
+        session = settings.Session()
         # if the url has `dagrun/edit` in it then this was
         # a manual state change kicked off through the UI.
         # In that case we want to kill any tasks that are unfinished
