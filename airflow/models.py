@@ -4735,16 +4735,14 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def _fail_unfinished_tasks(self, target_state):
-        print('flask-request-dir {}'.format(dir(request)))
-        print('flask-request-p {}'.format(request))
-        print('flask-request-url {}'.format(request.url))
-        # hack to see if this dagrun has manually been marked through the UI.
-        # if so, we also want to update the unfinished tasks
-        if 'edit_view' not in '\n'.join(traceback.format_stack()):
-            return
-        unfinished_tasks = self.get_task_instances(state=State.unfinished())
-        for ut in unfinished_tasks:
-            ut.set_state(target_state)
+        # if the url has `dagrun/edit` in it then this was
+        # a manual state change kicked off through the UI.
+        # In that case we want to kill any tasks that are unfinished
+        # by setting their current state to the state given by the user
+        if 'dagrun/edit/' in request.url:
+            unfinished_tasks = self.get_task_instances(state=State.unfinished())
+            for ut in unfinished_tasks:
+                ut.set_state(target_state)
 
     def set_state(self, state):
         if self._state != state:
