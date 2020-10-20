@@ -4746,15 +4746,14 @@ class DagRun(Base, LoggingMixin):
 
     def set_state(self, state):
         if self._state != state:
+            # FIXME: Due to the scoped_session factor we we don't get a clean
+            # session here, so something really weird goes on:
+            # if you try to close the session dag runs will end up detached
             session = settings.Session()
             self._state = state
             if state in [State.FAILED, State.SUCCESS]:
                 self._fail_unfinished_tasks(state, session)
             if self.dag_id is not None:
-                # FIXME: Due to the scoped_session factor we we don't get a clean
-                # session here, so something really weird goes on:
-                # if you try to close the session dag runs will end up detached
-                # session = settings.Session()
                 DagStat.set_dirty(self.dag_id, session=session)
 
     @declared_attr
