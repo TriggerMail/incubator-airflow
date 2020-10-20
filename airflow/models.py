@@ -4734,26 +4734,26 @@ class DagRun(Base, LoggingMixin):
     def get_state(self):
         return self._state
 
-    def _fail_unfinished_tasks(self, target_state):
+    def _fail_unfinished_tasks(self, target_state, session=None):
         # if the url has `dagrun/edit` in it then this was
         # a manual state change kicked off through the UI.
         # In that case we want to kill any tasks that are unfinished
         # by setting their current state to the state given by the user
         if 'dagrun/edit/' in request.url:
-            unfinished_tasks = self.get_task_instances(state=State.unfinished())
+            unfinished_tasks = self.get_task_instances(state=State.unfinished(), session=session)
             for ut in unfinished_tasks:
-                ut.set_state(target_state)
+                ut.set_state(target_state, session=session)
 
     def set_state(self, state):
         if self._state != state:
+            # FIXME: Due to the scoped_session factor we we don't get a clean
+            # session here, so something really weird goes on:
+            # if you try to close the session dag runs will end up detached
+            session = settings.Session()
             self._state = state
             if state in [State.FAILED, State.SUCCESS]:
-                self._fail_unfinished_tasks(state)
+                self._fail_unfinished_tasks(state, session)
             if self.dag_id is not None:
-                # FIXME: Due to the scoped_session factor we we don't get a clean
-                # session here, so something really weird goes on:
-                # if you try to close the session dag runs will end up detached
-                session = settings.Session()
                 DagStat.set_dirty(self.dag_id, session=session)
 
     @declared_attr
