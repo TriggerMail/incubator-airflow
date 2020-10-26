@@ -83,7 +83,7 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.log.logging_mixin import LoggingMixin
-from flask import request
+
 Base = declarative_base()
 ID_LEN = 250
 XCOM_RETURN_KEY = 'return_value'
@@ -4734,21 +4734,9 @@ class DagRun(Base, LoggingMixin):
     def get_state(self):
         return self._state
 
-    def _fail_unfinished_tasks(self, target_state):
-        # if the url has `dagrun/edit` in it then this was
-        # a manual state change kicked off through the UI.
-        # In that case we want to kill any tasks that are unfinished
-        # by setting their current state to the state given by the user
-        if 'dagrun/edit/' in request.url:
-            unfinished_tasks = self.get_task_instances(state=State.unfinished())
-            for ut in unfinished_tasks:
-                ut.set_state(target_state)
-
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            if state in [State.FAILED, State.SUCCESS]:
-                self._fail_unfinished_tasks(state)
             if self.dag_id is not None:
                 # FIXME: Due to the scoped_session factor we we don't get a clean
                 # session here, so something really weird goes on:
