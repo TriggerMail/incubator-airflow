@@ -2385,6 +2385,18 @@ class DagRunModelView(ModelViewOnly):
         start_date=datetime_f,
         dag_id=dag_link)
 
+    @expose('/edit/', methods=('GET', 'POST'))
+    def edit_view(self):
+        return_value = super(DagRunModelView, self).edit_view()
+        if request and request.method == 'POST' and request.form.get('state') in [State.SUCCESS, State.FAILED]:
+            dag_id = request.form.get('dag_id')
+            execution_date = request.form.get('execution_date')
+            execution_date = dateutil.parser.parse(execution_date)
+            dag = dagbag.get_dag(dag_id)
+            new_dag_state = set_dag_run_state(dag, execution_date, state=request.form.get('state'), commit=True)
+            flash('Marked {} DAGs as {}'.format(len(new_dag_state), request.form.get('state')))
+        return return_value
+
     @action('new_delete', "Delete", "Are you sure you want to delete selected records?")
     @provide_session
     def action_new_delete(self, ids, session=None):
