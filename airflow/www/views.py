@@ -2388,7 +2388,7 @@ class DagRunModelView(ModelViewOnly):
     @expose('/edit/', methods=('GET', 'POST'))
     def edit_view(self):
         return_value = super(DagRunModelView, self).edit_view()
-        if request and request.method == 'POST' and request.form.get('state') in [State.SUCCESS, State.FAILED]:
+        if request and request.method == 'POST':
             dag_id = request.form.get('dag_id')
             execution_date = request.form.get('execution_date')
             execution_date = dateutil.parser.parse(execution_date)
