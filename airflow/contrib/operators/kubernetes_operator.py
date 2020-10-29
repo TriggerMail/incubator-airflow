@@ -114,6 +114,12 @@ class KubernetesJobOperator(BaseOperator):
         self.cloudsql_connections = (cloudsql_connections or [])
 
         self.volumes = volumes or []
+        self.labels = {
+            'app.kubernetes.io/name': self.dag_id or UNDEFINED_LABEL,
+            'app.kubernetes.io/part-of': self.dag.part_of or UNDEFINED_LABEL,
+            'k8s.bluecore.com/team': self.dag.team or UNDEFINED_LABEL,
+            'app.kubernetes.io/component': self.dag.component or UNDEFINED_LABEL,
+        }
 
     @staticmethod
     def from_job_yaml(job_yaml_string,
@@ -494,12 +500,7 @@ class KubernetesJobOperator(BaseOperator):
                 'namespace':
                 'airflow-{}'.format(
                     configuration.get('core', 'environment_suffix')),
-                'labels': {
-                    'app.kubernetes.io/name': self.dag.dag_id or UNDEFINED_LABEL,
-                    'app.kubernetes.io/part-of': self.dag.part_of or UNDEFINED_LABEL,
-                    'k8s.bluecore.com/team': self.dag.team or UNDEFINED_LABEL,
-                    'app.kubernetes.io/component': self.dag.component or UNDEFINED_LABEL,
-                }
+                'labels': self.labels
             },
             'spec': {
                 'template': {
