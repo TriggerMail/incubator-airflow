@@ -3154,6 +3154,12 @@ class DAG(BaseDag, LoggingMixin):
     :type orientation: string
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :type catchup: bool
+    :param part_of: the part-of label attributed with this DAG
+    :type part_of: string
+    :param team: the team label attributed with this DAG
+    :type team: string
+    :param component: the component label attributed with this DAG
+    :type component: string
     """
 
     def __init__(
@@ -3174,7 +3180,11 @@ class DAG(BaseDag, LoggingMixin):
             default_view=configuration.get('webserver', 'dag_default_view').lower(),
             orientation=configuration.get('webserver', 'dag_orientation'),
             catchup=configuration.getboolean('scheduler', 'catchup_by_default'),
-            params=None):
+            params=None,
+            part_of=None,
+            team=None,
+            component=None,
+    ):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -3233,6 +3243,9 @@ class DAG(BaseDag, LoggingMixin):
             'template_searchpath',
             'last_loaded',
         }
+        self.part_of = part_of
+        self.component = component
+        self.team = team or self.params.get('owner') or self.default_args.get('owner')
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
