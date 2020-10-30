@@ -24,6 +24,7 @@ from airflow.contrib.utils.kubernetes_utils import retryable_check_output
 DEFAULT_POLL_SECONDS = 15
 MAX_BACKOFF_SECONDS = 300
 POLL_BACKOFF_FACTOR = 1.25
+UNDEFINED_LABEL = 'airflow-undefined'
 
 
 class KubernetesJobOperator(BaseOperator):
@@ -484,7 +485,6 @@ class KubernetesJobOperator(BaseOperator):
         for v in self.volumes:
             if v['name'] not in skip_names:
                 instance_volumes.append(v)
-
         kub_job_dict = {
             'apiVersion': 'batch/v1',
             'kind': 'Job',
@@ -493,7 +493,15 @@ class KubernetesJobOperator(BaseOperator):
                 unique_job_name,
                 'namespace':
                 'airflow-{}'.format(
-                    configuration.get('core', 'environment_suffix'))
+                    configuration.get('core', 'environment_suffix')),
+                'labels': {
+                    'dag_id': self.dag_id,
+                    'execution_date': context['execution_date'].strftime('%Y-%m-%dT%H.%M.%S.%f'),
+                    'app.kubernetes.io/name': self.dag_id or UNDEFINED_LABEL,
+                    'app.kubernetes.io/part-of': self.dag.part_of or UNDEFINED_LABEL,
+                    'k8s.bluecore.com/team': self.dag.team or UNDEFINED_LABEL,
+                    'app.kubernetes.io/component': self.dag.component or UNDEFINED_LABEL,
+                }
             },
             'spec': {
                 'template': {
