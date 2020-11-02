@@ -18,13 +18,11 @@ from airflow.utils.state import State
 from airflow.utils.db import provide_session
 from airflow.contrib.utils.kubernetes_utils import retryable_check_output
 
-
 # How quickly backoff grows. At 1.25, it will take ~20 mins to reach the 300-sec
 # MAX_BACKOFF_SECONDS value.
 DEFAULT_POLL_SECONDS = 15
 MAX_BACKOFF_SECONDS = 300
 POLL_BACKOFF_FACTOR = 1.25
-UNDEFINED_LABEL = 'airflow-undefined'
 
 
 class KubernetesJobOperator(BaseOperator):
@@ -240,8 +238,7 @@ class KubernetesJobOperator(BaseOperator):
             if self.poll_backoff:
                 self.sleep_seconds_between_polling = min(
                     self.sleep_seconds_between_polling * POLL_BACKOFF_FACTOR,
-                    MAX_BACKOFF_SECONDS
-                )
+                    MAX_BACKOFF_SECONDS)
 
             pod_output = self.get_pods(job_name)
 
@@ -495,12 +492,10 @@ class KubernetesJobOperator(BaseOperator):
                 'airflow-{}'.format(
                     configuration.get('core', 'environment_suffix')),
                 'labels': {
-                    'dag_id': self.dag_id,
-                    'execution_date': context['execution_date'].strftime('%Y-%m-%dT%H.%M.%S.%f'),
-                    'app.kubernetes.io/name': self.dag_id or UNDEFINED_LABEL,
-                    'app.kubernetes.io/part-of': self.dag.part_of or UNDEFINED_LABEL,
-                    'k8s.bluecore.com/team': self.dag.team or UNDEFINED_LABEL,
-                    'app.kubernetes.io/component': self.dag.component or UNDEFINED_LABEL,
+                    'dag_id':
+                    self.dag_id,
+                    'execution_date':
+                    context['execution_date'].strftime('%Y-%m-%dT%H.%M.%S.%f'),
                 }
             },
             'spec': {
@@ -509,6 +504,13 @@ class KubernetesJobOperator(BaseOperator):
                         'annotations': {
                             'cluster-autoscaler.kubernetes.io/safe-to-evict':
                             'false'
+                        },
+                        'labels': {
+                            'app.kubernetes.io/name': self.dag_id,
+                            'app.kubernetes.io/part-of': self.part_of or self.dag.part_of or self.UNDEFINED_LABEL,
+                            'k8s.bluecore.com/team': self.team or self.dag.team or self.UNDEFINED_LABEL,
+                            'app.kubernetes.io/component': self.component or self.dag.component or self.UNDEFINED_LABEL,
+                            'k8s.bluecore.com/partner': self.partner or self.UNDEFINED_LABEL,
                         }
                     },
                     'spec': {
