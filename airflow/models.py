@@ -2392,6 +2392,14 @@ class BaseOperator(LoggingMixin):
     :param task_concurrency: When set, a task will be able to limit the concurrent
         runs across execution_dates
     :type task_concurrency: int
+    :param partner: the partner for the current operator
+    :type partner: str
+    :param part_of: override for the DAG defined part_of label
+    :type part_of: str
+    :param component: override for the DAG defined component label
+    :type component: str
+    :param team: override for the DAG defined team label
+    :type component: str
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -2401,6 +2409,7 @@ class BaseOperator(LoggingMixin):
     # Defines the color in the UI
     ui_color = '#fff'
     ui_fgcolor = '#000'
+    UNDEFINED_LABEL = 'airflow-undefined'
 
     @apply_defaults
     def __init__(
@@ -2435,6 +2444,10 @@ class BaseOperator(LoggingMixin):
             resources=None,
             run_as_user=None,
             task_concurrency=None,
+            partner=None,
+            part_of=None,
+            component=None,
+            team=None,
             *args,
             **kwargs):
 
@@ -2532,6 +2545,11 @@ class BaseOperator(LoggingMixin):
             'on_success_callback',
             'on_retry_callback',
         }
+
+        self.partner = partner or self.UNDEFINED_LABEL
+        self.part_of = part_of or self.dag.part_of or self.UNDEFINED_LABEL
+        self.component = component or self.dag.component or self.UNDEFINED_LABEL
+        self.team = team or self.dag.team or self.UNDEFINED_LABEL
 
     def __eq__(self, other):
         return (
