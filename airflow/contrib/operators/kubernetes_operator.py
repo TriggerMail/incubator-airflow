@@ -496,8 +496,6 @@ class KubernetesJobOperator(BaseOperator):
                     self.dag_id,
                     'execution_date':
                     context['execution_date'].strftime('%Y-%m-%dT%H.%M.%S.%f'),
-                    'partner':
-                    self.partner,
                 }
             },
             'spec': {
@@ -509,9 +507,10 @@ class KubernetesJobOperator(BaseOperator):
                         },
                         'labels': {
                             'app.kubernetes.io/name': self.dag_id,
-                            'app.kubernetes.io/part-of': self.part_of,
-                            'k8s.bluecore.com/team': self.team,
-                            'app.kubernetes.io/component': self.component,
+                            'app.kubernetes.io/part-of': self.part_of or self.dag.part_of or self.UNDEFINED_LABEL,
+                            'k8s.bluecore.com/team': self.team or self.dag.team or self.UNDEFINED_LABEL,
+                            'app.kubernetes.io/component': self.component or self.dag.component or self.UNDEFINED_LABEL,
+                            'k8s.bluecore.com/partner': self.partner or self.UNDEFINED_LABEL,
                         }
                     },
                     'spec': {

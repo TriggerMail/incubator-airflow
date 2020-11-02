@@ -2546,10 +2546,10 @@ class BaseOperator(LoggingMixin):
             'on_retry_callback',
         }
 
-        self.partner = partner or self.UNDEFINED_LABEL
-        self.part_of = part_of or self.dag.part_of or self.UNDEFINED_LABEL
-        self.component = component or self.dag.component or self.UNDEFINED_LABEL
-        self.team = team or self.dag.team or self.UNDEFINED_LABEL
+        self.partner = partner
+        self.part_of = part_of
+        self.component = component
+        self.team = team
 
     def __eq__(self, other):
         return (
